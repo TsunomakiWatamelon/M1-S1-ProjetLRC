@@ -2,39 +2,78 @@
 % M1 Informatique SU
 % Robin Soares & Herve Nguyen
 
-programme() :- load_files('tabox.pl'), load_files('aux.pl').
+xdd() :- load_files('tabox.pl'),
+         load_files('aux.pl').
+
+programme() :- load_files('tabox.pl'),
+               load_files('aux.pl'),
+               premiere_etape(Tbox,Abi,Abr).
 
 % ##### Partie 1 #####
 
+premiere_etape(Tbox,Abi,Abr) :- 
+    initTBox(InitT),
+    initABoxC(InitAC),
+    initABoxR(Abr),
+    write(InitT), nl,
+    (correctionTBox(InitT) -> write("Correction TBox ok") ; write("Fail 1"), false), nl,
+    (correctionABoxC(InitAC) -> write("Correction ABoxC ok") ; write("Fail 2"), false), nl,
+    (correctionABoxR(Abr) -> write("Correction ABoxR ok") ; write("Fail 3"), false), nl,
+    (traitement_Abox(InitAC, Abi) -> write("Traitement 1 ok")), nl,
+    (traitement_Tbox(InitT, Tbox) -> write("Traitement 2 ok")), nl.
+
+
 % On cree liste qui representera la TBox et les deux listes qui represente la ABox
 initTBox(TBox) :- setof((Concept, Definition), equiv(Concept, Definition), TBox).
-initTBox(ABoxC) :- setof((Instance, Concept), inst(Instance,Concept), ABoxC).
-initTBox(ABoR) :- setof((Instance1, Instance2, Role), instR(Instance1, Instance2, Role), ABoxR).
+initABoxC(ABoxC) :- setof((Instance, Concept), inst(Instance,Concept), ABoxC).
+initABoxR(ABoxR) :- setof((Instance1, Instance2, Role), instR(Instance1, Instance2, Role), ABoxR).
 
 % Correction sémantique
 
-setof(X, cnamea(X), CA).
-setof(X, cnamena(X), CA).
-setof(X, iname(X), Id).
-setof(X, rname(X), R).
+getListe(CA, CNA, ID, R) :-
+    setof(X, cnamea(X), CA),
+    setof(X, cnamena(X), CNA), 
+    setof(X, iname(X), ID), 
+    setof(X, rname(X), R).
 
-isCA(X) :- member(X, CA).
-isCNA(X) :- member(X, CNA).
-isId(X) :- member(X, Id).
-isR(X) :- member(X, R).
+
+isCA(X)  :- getListe(CA, CNA, ID, R), member(X, CA), not(member(X, CNA)), not(member(X, ID)), not(member(X, R)).
+isCNA(X) :- getListe(CA, CNA, ID, R), member(X, CNA), not(member(X, CA)), not(member(X, ID)), not(member(X, R)).
+isId(X)  :- getListe(CA, CNA, ID, R), member(X, ID), not(member(X, CA)), not(member(X, CNA)), not(member(X, R)).
+isR(X)   :- getListe(CA, CNA, ID, R), member(X, R), not(member(X, CA)), not(member(X, CNA)), not(member(X, ID)).
 
 
 % Correction syntaxique
 
 concept(Concept) :- isCA(Concept).
 concept(Concept) :- isCNA(Concept).
-concept(False).
-concept(True).
+concept(anything).
+concept(nothing).
 concept(not(Concept)) :- concept(Concept).
 concept(and(ConceptX,ConceptY)) :- concept(ConceptX), concept(ConceptY).
 concept(or(ConceptX, ConceptY)) :- concept(ConceptX), concept(ConceptY).
-concept(some(Role, Concept)) :- isR(Role), concept(ConceptY).
-concept(all(Role, Concept)) :- isR(Role), concept(ConceptY).
+concept(some(Role, Concept)) :- isR(Role), concept(Concept).
+concept(all(Role, Concept)) :- isR(Role), concept(Concept).
+
+% Correction Generale
+
+correctionTBox([(Concept, Definition) | Reste]) :-
+    (concept(Concept) -> write("ppx1"), nl ; write(Concept), false),
+    (concept(Definition) -> write("ppx2"), nl ; write(Definition), false),
+    (not(autoref(Concept)) -> write("ppx3"), nl ; write(Concept), false),
+    (not(autoref(Definition)) -> write("ppx4"), nl ; write(Definition), false),
+    correctionTBox(Reste).
+correctionTBox([]).
+
+correctionABoxC([(Instance, Concept) | Reste]) :-
+    isId(Instance),
+    concept(Concept),
+    not(autoref(Concept)),
+    correctionABoxC(Reste).
+correctionABoxC([]).
+
+correctionABoxR([(Instance1, Instance2, Role) | Reste]) :- isId(Instance1), isId(Instance2), isR(Role), correctionABoxR(Reste).
+correctionABoxR([]).
 
 % Prédicats
 
@@ -52,8 +91,8 @@ conceptAutoref(Concept, and(Expression1, Expression2)) :-
 conceptAutoref(Concept, or(Expression1, Expression2)) :- 
     conceptAutoref(Concept, Expression1);
     conceptAutoref(Concept, Expression2).
-conceptAutoref(Concept, some(Role, Expression)) :- conceptAutoref(Concept, Expression).
-conceptAutoref(Concept, all(Role, Expression)) :- conceptAutoref(Concept, Expression).
+conceptAutoref(Concept, some(_, Expression)) :- conceptAutoref(Concept, Expression).
+conceptAutoref(Concept, all(_, Expression)) :- conceptAutoref(Concept, Expression).
 
 
 % Obtenir une definition ne contenant que de concepts atomiques
@@ -65,11 +104,16 @@ definitionAtomique(and(D1,D2), and(R1,R2)) :- definitionAtomique(D1,R1), definit
 definitionAtomique(some(Role, Definition), some(Role, Res)) :- definitionAtomique(Definition, Res).
 definitionAtomique(all(Role,Definition), all(Role, Res)) :- definitionAtomique(Definition, Res).
 
-% Remplacer les termes de la TBox originale par les termes traités
+% Remplacer les concepts de la TBox ou ABox originale par des Concepts composés de termes atomiques
+% Et en NNF
+remplacement([], []).
 remplacement([(Concept, Definition) | Reste], [(Concept, DefinitionTraite) | ResteTraite]) :-
     definitionAtomique(Definition, Atomique),
     nnf(Atomique, DefinitionTraite),
     remplacement(Reste, ResteTraite).
 
+% Traitement
 
-traitement_Tbox(TBox) :- initTBox(Initial), remplacement(Initial, TBox).
+traitement_Tbox(Initial, TBox) :- remplacement(Initial, TBox).
+traitement_Abox(Initial, ABoxC) :- remplacement(Initial, ABoxC).
+
