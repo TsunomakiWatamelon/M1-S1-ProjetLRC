@@ -10,14 +10,34 @@ premiere_etape(Tbox,Abi,Abr) :-
     initABoxC(InitAC),
     initABoxR(Abr),
     write(InitT), nl,
-    (correctionTBox(InitT) -> write('Correction TBox ok') ; write('Erreur : TBox invalide'), fail), nl,
-    (correctionABoxC(InitAC) -> write('Correction ABoxC ok') ; write('Erreur : ABox (instanciation de concepts) invalide'), fail), nl,
-    (correctionABoxR(Abr) -> write('Correction ABoxR ok') ; write('Erreur : ABox (instanciation de rôles) invalide'), fail), nl,
-    (traitement_Abox(InitAC, Abi) -> write('Info : ABox traitée')), nl,
-    (traitement_Tbox(InitT, Tbox) -> write('Info : TBox traitée')), nl.
+
+    (
+        correctionTBox(InitT) -> 
+        write('Info : TBox valide') ;
+        write('Erreur : TBox invalide'), fail
+    ), nl,
+    (
+        correctionABoxC(InitAC) -> 
+        write('Info : ABoxC (instanciation de concepts) valide') ; 
+        write('Erreur : ABox (instanciation de concepts) invalide'), fail
+    ), nl,
+    (
+        correctionABoxR(Abr) -> 
+        write('Info : ABoxR (instanciation de rôles) valide') ; 
+        write('Erreur : ABox (instanciation de rôles) invalide'), fail
+    ), nl,
+    (
+        traitement_Abox(InitAC, Abi) ->
+        write('Info : ABox traitée')
+    ), nl,
+    (
+        traitement_Tbox(InitT, Tbox) ->
+        write('Info : TBox traitée')
+    ), nl.
 
 
 % On cree liste qui representera la TBox et les deux listes qui represente la ABox
+
 initTBox(TBox) :- setof((Concept, Definition), equiv(Concept, Definition), TBox).
 initABoxC(ABoxC) :- setof((Instance, Concept), inst(Instance,Concept), ABoxC).
 initABoxR(ABoxR) :- setof((Instance1, Instance2, Role), instR(Instance1, Instance2, Role), ABoxR).
@@ -71,7 +91,7 @@ correctionABoxR([]).
 correctionABoxR([(Instance1, Instance2, Role) | Reste]) :- isId(Instance1), isId(Instance2), isR(Role), correctionABoxR(Reste).
 
 
-% Prédicats
+% Prédicats autoref et definition atomique
 
 autoref(Concept) :-
     equiv(Concept, Expression),
@@ -98,7 +118,7 @@ conceptAutoref(Concept, all(_, Expression)) :-
 definitionAtomique(Definition, Definition) :-
     cnamea(Definition).
 definitionAtomique(Definition, Res) :-
-    equiv(Definition, X), definitionAtomique(X, Res).
+    equiv(Definition, X), definitionAtomique(X, Res). % Obtenir une expression equivalente composé de termes atomiques
 definitionAtomique(not(Definition), not(Res)) :-
     definitionAtomique(Definition, Res).
 definitionAtomique(or(D1,D2), or(R1,R2)) :-
@@ -111,6 +131,7 @@ definitionAtomique(some(Role, Definition), some(Role, Res)) :-
     definitionAtomique(Definition, Res).
 definitionAtomique(all(Role,Definition), all(Role, Res)) :-
     definitionAtomique(Definition, Res).
+
 
 % Remplacer les concepts de la TBox ou ABox originale par des Concepts composés de termes atomiques
 % Et en NNF
