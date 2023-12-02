@@ -7,9 +7,9 @@ programme() :- load_files('tabox.pl'), load_files('aux.pl').
 % ##### Partie 1 #####
 
 % On cree liste qui representera la TBox et les deux listes qui represente la ABox
-setof((Concept, Definition), equiv(Concept, Definition), TBox).
-setof((Instance, Concept), inst(Instance,Concept), ABoxC).
-setof((Instance1, Instance2, Role), instR(Instance1, Instance2, Role), ABoxR).
+initTBox(TBox) :- setof((Concept, Definition), equiv(Concept, Definition), TBox).
+initTBox(ABoxC) :- setof((Instance, Concept), inst(Instance,Concept), ABoxC).
+initTBox(ABoR) :- setof((Instance1, Instance2, Role), instR(Instance1, Instance2, Role), ABoxR).
 
 % Correction sémantique
 
@@ -38,7 +38,7 @@ concept(all(Role, Concept)) :- isR(Role), concept(ConceptY).
 
 % Prédicats
 
-autoref(Concept) :- equiv(Concept, Expression), conceptAutoref(Concept, Expression).
+autoref(Concept) :- equiv(Concept, Expression), conceptAutoref(Concept, Expression), write('Info : Aucun concept auto-référent détécté').
 
 conceptAutoref(Concept, Concept) :- 
     write('Erreur : Un concept auto-référent a été detecté'), 
@@ -55,4 +55,21 @@ conceptAutoref(Concept, or(Expression1, Expression2)) :-
 conceptAutoref(Concept, some(Role, Expression)) :- conceptAutoref(Concept, Expression).
 conceptAutoref(Concept, all(Role, Expression)) :- conceptAutoref(Concept, Expression).
 
-% traitement_Tbox 
+
+% Obtenir une definition ne contenant que de concepts atomiques
+definitionAtomique(Definition, Definition) :- cnamea(Definition).
+definitionAtomique(Definition, Res) :- equiv(Definition, X), definitionAtomique(X, Res).
+definitionAtomique(not(Definition), not(Res)) :- definitionAtomique(Definition, Res).
+definitionAtomique(or(D1,D2), or(R1,R2)) :- definitionAtomique(D1,R1), definitionAtomique(D2,R2).
+definitionAtomique(and(D1,D2), and(R1,R2)) :- definitionAtomique(D1,R1), definitionAtomique(D2,R2).
+definitionAtomique(some(Role, Definition), some(Role, Res)) :- definitionAtomique(Definition, Res).
+definitionAtomique(all(Role,Definition), all(Role, Res)) :- definitionAtomique(Definition, Res).
+
+% Remplacer les termes de la TBox originale par les termes traités
+remplacement([(Concept, Definition) | Reste], [(Concept, DefinitionTraite) | ResteTraite]) :-
+    definitionAtomique(Definition, Atomique),
+    nnf(Atomique, DefinitionTraite),
+    remplacement(Reste, ResteTraite).
+
+
+traitement_Tbox(TBox) :- initTBox(Initial), remplacement(Initial, TBox).
