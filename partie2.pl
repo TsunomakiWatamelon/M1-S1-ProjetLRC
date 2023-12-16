@@ -36,9 +36,12 @@ acquisition_prop_type2(Abi, [(inst, and(NCA1Final, NCA2Final))|Abi], TBox) :-
     nnf(NCA1, NCA1Final), nnf(NCA2, NCA2Final).
 
 suite(1,Abi,Abi1,Tbox) :- 
+    write("Vous avez choisi le type 1"),nl,
     acquisition_prop_type1(Abi,Abi1,Tbox),!.
 suite(2,Abi,Abi1,Tbox) :- 
+    write("Vous avez choisi le type 2"),nl,
     acquisition_prop_type2(Abi,Abi1,Tbox),!.
-suite(R,Abi,Abi1,Tbox) :- 
+
+suite(R,Abi,Abi1,Tbox) :-
     nl,write('Cette reponse est incorrecte.'),nl,
     saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox).
