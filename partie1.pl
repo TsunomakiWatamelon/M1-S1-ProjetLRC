@@ -73,10 +73,10 @@ concept(all(Role, Concept)) :- isR(Role), concept(Concept).
 
 correctionTBox([]).
 correctionTBox([(Concept, Definition) | Reste]) :-
-    (concept(Concept) -> true ; write('Erreur : '), write(Concept), write('n\'est pas un concept'), nl, false),
-    (concept(Definition) -> true ; write('Erreur : '), write(Definition), write('n\'est pas un concept'), nl, false),
-    (not(autoref(Concept)) -> true ; write('Erreur : '), write(Concept), write('est autoreferent'), nl, false),
-    (not(autoref(Definition)) -> true ; write('Erreur : '), write(Definition), write('est autoreferent'), nl, false),
+    (concept(Concept) -> true ; write('Erreur : '), write(Concept), write(' n\'est pas un concept'), nl, false),
+    (concept(Definition) -> true ; write('Erreur : '), write(Definition), write(' n\'est pas un concept'), nl, false),
+    (not(autoref(Concept)) -> true ; write('Erreur : '), write(Concept), write(' est autoreferent'), nl, false),
+    (not(autoref(Definition)) -> true ; write('Erreur : '), write(Definition), write(' est autoreferent'), nl, false),
     correctionTBox(Reste).
 
 
@@ -95,7 +95,7 @@ correctionABoxR([(Instance1, Instance2, Role) | Reste]) :- isId(Instance1), isId
 
 autoref(Concept) :-
     equiv(Concept, Expression),
-    (not(conceptAutoref(Concept, Expression)) -> write('Info : Aucun concept auto-référent détécté') ; false).
+    (not(conceptAutoref(Concept, Expression)) -> write('Info : '), write(Concept), write(" n\'est pas autoreferent"), nl, false ; true).
 
 conceptAutoref(Concept, Concept).
 conceptAutoref(Concept, some(Expression)) :-
