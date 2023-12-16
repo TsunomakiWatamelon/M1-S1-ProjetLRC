@@ -20,26 +20,29 @@ acquisition_type1_concept(C) :-
     nl,write("Entrez le nom du concept de votre proposition :"),nl,read(C).
 
 acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi],Tbox) :-
-    acquisition_type1_instance(Inst),acquisition_type1_concept(C),
-    isId(Inst), concept(C),
+    acquisition_type1_instance(Inst),
+    (isId(Inst) -> true; write(Inst), write(" n'est pas une instance"), nl, false),
+    acquisition_type1_concept(C),
+    (concept(C) -> true; write(C), write(" n'est pas un concept"), nl, false),
     definitionAtomique(not(C), NCA),
     nnf(NCA, NCFinal).
 
-acquisition_type2_concept(C1,C2) :-
-    nl,write("Entrez le nom du premier concept C1 de votre proposition :"),nl,read(C1),
-    nl,write("Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C2).
+acquisition_type2_concept(C,1) :-
+    nl,write("Entrez le nom du premier concept C1 de votre proposition :"),nl,read(C).
+acquisition_type2_concept(C,2) :-
+    nl,write("Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C).
 
 acquisition_prop_type2(Abi, [(inst, and(NCA1Final, NCA2Final))|Abi], TBox) :-
-    acquisition_type2_concept(C1, C2),
-    concept(C1), concept(C2),
+    acquisition_type2_concept(C1,1),
+    (concept(C1) -> true; write(C1), write(" n'est pas un concept"), nl, false),
+    acquisition_type2_concept(C2,2),
+    (concept(C2) -> true; write(C2), write(" n'est pas un concept"), nl, false),
     definitionAtomique(not(C1), NCA1), definitionAtomique(not(C2), NCA2),
     nnf(NCA1, NCA1Final), nnf(NCA2, NCA2Final).
 
 suite(1,Abi,Abi1,Tbox) :- 
-    write("Vous avez choisi le type 1"),nl,
     acquisition_prop_type1(Abi,Abi1,Tbox),!.
 suite(2,Abi,Abi1,Tbox) :- 
-    write("Vous avez choisi le type 2"),nl,
     acquisition_prop_type2(Abi,Abi1,Tbox),!.
 
 suite(R,Abi,Abi1,Tbox) :-
