@@ -2,6 +2,8 @@
 % M1 Informatique SU
 % Robin Soares & Herve Nguyen
 
+compteur(1).
+
 programme() :- load_files('tabox.pl'),
                load_files('aux.pl'),
                load_files('partie1.pl'),
