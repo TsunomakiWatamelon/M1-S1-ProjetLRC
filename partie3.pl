@@ -7,8 +7,8 @@
 
 troisieme_etape(Abi,Abr) :- 
     tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls),
-    resolution(Lie,Lpt,Li,Lu,Ls,Abr), nl,
-    write('Youpiiiiii, on a demontre la proposition initiale !!!').
+    write("xdd pedro"), nl,
+    not(resolution(Lie,Lpt,Li,Lu,Ls,Abr)) -> write('Youpiiiiii, on a demontre la proposition initiale !!!') ; write("On a pas reussi a demontrer la proposition initiale :(").
 
 
 
@@ -35,27 +35,35 @@ tri_Abox([(I, not(C)) | Abi],Lie,Lpt,Li,Lu,[(I, not(C)) | Ls]) :-
 tri_Abox([], _, _, _, _, _).
 
 resolution(Lie, Lpt, Li, Lu, Ls, Abr) :-
+    write("resolution 1"), nl,
     not(contient_clash(Ls)),
     complete_some(Lie, Lpt, Li, Lu, Ls, Abr).
 
 resolution([], Lpt, Li, Lu, Ls, Abr) :-
+    write("resolution 2"), nl,
+    write(Ls), nl,
     not(contient_clash(Ls)),
     deduction_all([], Lpt, Li, Lu, Ls, Abr).
 
 resolution([], [], Li, Lu, Ls, Abr) :- 
+    write("resolution 3"), nl,
     not(contient_clash(Ls)),
     transformation_and([], [], Li, Lu, Ls, Abr).
 
 resolution([], [], [], Lu, Ls, Abr) :-
+    write("resolution 4"), nl,
     not(contient_clash(Ls)),
     transformation_or([], [], [], Lu, Ls, Abr).
 
 resolution([], [], [], [], Ls, Abr) :-
+    write("resolution 5"), nl,
     not(contient_clash(Ls)).
 
 contient_clash([(I, C) | Reste]) :-
     nnf(C, C1),
-    member((I, not(C1)), Reste).
+    (not(member((I, not(C1)), Reste)) -> contient_clash(Reste) ; true).
+
+contient_clash([]) :- false.
     
 complete_some([(A, some(R,C)) | Lie],Lpt,Li,Lu,Ls,Abr) :-
     genere(B),
