@@ -200,14 +200,14 @@ acquisition_type2_concept(C,2) :-
     nl,write("Input : Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C).
 
 % Traitement de la proposition de type 2
-acquisition_prop_type2(Abi, [(Inst, and(NCA1Final, NCA2Final))|Abi]) :-
+acquisition_prop_type2(Abi, [(Inst, and(CA1Final, CA2Final))|Abi]) :-
     genere(Inst),
     acquisition_type2_concept(C1,1),
     (concept(C1) -> true; write("Warning : "), write(C1), write(" n'est pas un concept"), nl, false),
     acquisition_type2_concept(C2,2),
     (concept(C2) -> true; write("Warning : "), write(C2), write(" n'est pas un concept"), nl, false),
-    definitionAtomique(not(C1), NCA1), definitionAtomique(not(C2), NCA2),
-    nnf(NCA1, NCA1Final), nnf(NCA2, NCA2Final).
+    definitionAtomique(C1, CA1), definitionAtomique(C2, CA2),
+    nnf(CA1, CA1Final), nnf(CA2, CA2Final).
 
 suite(1,Abi,Abi1,Tbox) :- 
     acquisition_prop_type1(Abi,Abi1),!.
