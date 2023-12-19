@@ -3,8 +3,6 @@
 % Robin Soares & Herve Nguyen
 
 programme() :- load_files('tabox.pl'),
-               load_files('aux.pl'),
-               load_files('partie3.pl'),
                premiere_etape(Tbox,Abi,Abr),
                deuxieme_etape(Abi,Abi1,TBox),
                troisieme_etape(Abi1,Abr).
@@ -17,7 +15,6 @@ premiere_etape(Tbox,Abi,Abr) :-
     initTBox(InitT),
     initABoxC(InitAC),
     initABoxR(Abr),
-    write(InitT), nl,
 
     (
         correctionTBox(InitT) -> 
@@ -36,11 +33,11 @@ premiere_etape(Tbox,Abi,Abr) :-
     ), nl,
     (
         traitement_Abox(InitAC, Abi) ->
-        write('Info : ABox traitée')
+        write('Info : ABox traitee')
     ), nl,
     (
         traitement_Tbox(InitT, Tbox) ->
-        write('Info : TBox traitée')
+        write('Info : TBox traitee')
     ), nl.
 
 
@@ -171,26 +168,26 @@ deuxieme_etape(Abi,Abi1,Tbox) :-
     saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox).
 
 saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox) :-
-    nl,write("Entrez le numero du type de proposition que vous voulez demontrer :"),nl,
-    write("1 Une instance donnee appartient a un concept donne."), nl,
-    write("2 Deux concepts n\'ont pas d\'elements en commun(ils ont une intersection vide)."),nl, read(R), suite(R,Abi,Abi1,Tbox).
+    nl,write("Input : Entrez le numero du type de proposition que vous voulez demontrer :"),nl,
+    write("Input : \"1\" Une instance donnee appartient a un concept donne."), nl,
+    write("Input : \"2\" Deux concepts n\'ont pas d\'elements en commun(ils ont une intersection vide)."),nl, read(R), suite(R,Abi,Abi1,Tbox).
 
 
 % ##### Type 1 #####
 
 % Saisie de l'instance et du concept pour les propositions de type 1
 acquisition_type1_instance(Inst) :- 
-    nl,write("Entrez le nom de l\'instance de votre proposition :"),nl,read(Inst).
+    nl,write("Input : Entrez le nom de l\'instance de votre proposition :"),nl,read(Inst).
 
 acquisition_type1_concept(C) :- 
-    nl,write("Entrez le nom du concept de votre proposition :"),nl,read(C).
+    nl,write("Input : Entrez le nom du concept de votre proposition :"),nl,read(C).
 
 % Traitement de la proposition de type 1
-acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi],Tbox) :-
+acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi]) :-
     acquisition_type1_instance(Inst),
-    (isId(Inst) -> true; write(Inst), write(" n'est pas une instance"), nl, false),
+    (isId(Inst) -> true; write("Warning : "), write(Inst), write(" n'est pas une instance"), nl, false),
     acquisition_type1_concept(C),
-    (concept(C) -> true; write(C), write(" n'est pas un concept"), nl, false),
+    (concept(C) -> true; write("Warning : "), write(C), write(" n'est pas un concept"), nl, false),
     definitionAtomique(not(C), NCA),
     nnf(NCA, NCFinal).
 
@@ -198,26 +195,27 @@ acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi],Tbox) :-
 
 % Saisie des deux concepts pour les propositions de type 2
 acquisition_type2_concept(C,1) :-
-    nl,write("Entrez le nom du premier concept C1 de votre proposition :"),nl,read(C).
+    nl,write("Input : Entrez le nom du premier concept C1 de votre proposition :"),nl,read(C).
 acquisition_type2_concept(C,2) :-
-    nl,write("Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C).
+    nl,write("Input : Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C).
 
 % Traitement de la proposition de type 2
-acquisition_prop_type2(Abi, [(inst, and(NCA1Final, NCA2Final))|Abi], TBox) :-
+acquisition_prop_type2(Abi, [(Inst, and(NCA1Final, NCA2Final))|Abi]) :-
+    genere(Inst),
     acquisition_type2_concept(C1,1),
-    (concept(C1) -> true; write(C1), write(" n'est pas un concept"), nl, false),
+    (concept(C1) -> true; write("Warning : "), write(C1), write(" n'est pas un concept"), nl, false),
     acquisition_type2_concept(C2,2),
-    (concept(C2) -> true; write(C2), write(" n'est pas un concept"), nl, false),
+    (concept(C2) -> true; write("Warning : "), write(C2), write(" n'est pas un concept"), nl, false),
     definitionAtomique(not(C1), NCA1), definitionAtomique(not(C2), NCA2),
     nnf(NCA1, NCA1Final), nnf(NCA2, NCA2Final).
 
 suite(1,Abi,Abi1,Tbox) :- 
-    acquisition_prop_type1(Abi,Abi1,Tbox),!.
+    acquisition_prop_type1(Abi,Abi1),!.
 suite(2,Abi,Abi1,Tbox) :- 
-    acquisition_prop_type2(Abi,Abi1,Tbox),!.
+    acquisition_prop_type2(Abi,Abi1),!.
 
-suite(R,Abi,Abi1,Tbox) :-
-    nl,write('Cette reponse est incorrecte.'),nl,
+suite(_,Abi,Abi1,Tbox) :-
+    nl,write("Warning : Cette reponse est incorrecte."),nl,
     saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox).
 
 
@@ -227,7 +225,7 @@ suite(R,Abi,Abi1,Tbox) :-
 
 troisieme_etape(Abi,Abr) :- 
     tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls), nl,
-    not(resolution(Lie,Lpt,Li,Lu,Ls,Abr)) -> write('Youpiiiiii, on a demontre la proposition initiale !!!') ; write("On a pas reussi a demontrer la proposition initiale :(").
+    not(resolution(Lie,Lpt,Li,Lu,Ls,Abr)) -> write("Result : La proposition initiale a ete demontree"), nl ; write("Result : La proposition initiale n\'a pas pu etre demontree"), nl.
 
 % ##### tri_Abox #####
 % Genere les 5 listes de la ABox etendue pour pouvoir appliquer les regles de resolution
@@ -276,53 +274,69 @@ resolution([], [], [], Lu, Ls, Abr) :-
 resolution([], [], [], [], Ls, Abr) :-
     not(contient_clash(Ls)).
 
+% Règle pour vérifier si X est un membre de la liste
+
 % ##### contient_clash #####
 
 % Verifie si la ABox etendue contient un clash
 contient_clash([]) :- false.
 contient_clash([(I, C) | Reste]) :-
     nnf(not(C), C1),
-    member((I, C1), Reste) -> true ; contient_clash(Reste).
+    member((I, C1), Reste) -> write("CLASH : Un clash a ete detecte"), nl,true ; contient_clash(Reste).
 
 % ##### complete_some #####
 
 % Applique la regle ∃
 complete_some([(A, some(R,C)) | Lie],Lpt,Li,Lu,Ls,Abr) :-
+    write("####################################################################"), nl, nl,
+    write("Application de la regle ∃ sur : "), nl, write("    "), affiche_concept((A, some(R,C))), nl, nl,
     genere(B),
     evolue((B, C), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
     affiche_evolution_Abox(Ls, [(A, some(R,C)) | Lie], Lpt, Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, [(A, B, R) | Abr]),
+    write("####################################################################"), nl, nl,
     resolution(Lie1, Lpt1, Li1, Lu1, Ls1, [(A, B, R) | Abr]).
-complete_some([], _, _, _, _, _).
 
 % ##### deduction_all #####
 
 % Applique la regle ∀
 deduction_all(Lie, [(I, all(R, C)) | Lpt], Li, Lu, Ls, Abr) :-
-    setof((B, C), member((I, B, R), Abr), L),
+    write("####################################################################"), nl, nl,
+    write("Application de la regle ∀ sur : "), nl, write("    "), affiche_concept((I, all(R,C))), nl, nl,
+    write("Abr"), nl, affiche_Abr(Abr), nl,
+    findall((B, C), member((I, B, R), Abr), L),
     evolue_multi(L, Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
     affiche_evolution_Abox(Ls, Lie, [(I, all(R, C)) | Lpt], Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr),
+    write("####################################################################"), nl, nl,
     resolution(Lie1, Lpt1, Li1, Lu1, Ls1, Abr).
-deduction_all(_, [], _, _, _, _).
 
 % ##### transformation_and #####
 
 % Applique la regle ⊓
 transformation_and(Lie,Lpt,[(I, and(C1, C2)) | Li],Lu,Ls,Abr) :-
+    write("####################################################################"), nl, nl,
+    write("Application de la regle ⊓ sur : "), nl, write("    "), affiche_concept((I, and(C1, C2))), nl, nl,
     evolue((I, C1), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
     evolue((I, C2), Lie1, Lpt1, Li1, Lu1, Ls1, Lie2, Lpt2, Li2, Lu2, Ls2),
     affiche_evolution_Abox(Ls, Lie, Lpt, [(I, and(C1, C2)) | Li], Lu, Abr, Ls2, Lie2, Lpt2, Li2, Lu2, Abr),
+    write("####################################################################"), nl, nl,
     resolution(Lie2, Lpt2, Li2, Lu2, Ls2, Abr).
-transformation_and(_, _, [], _, _, _).
 
 % ##### transformation_or #####
 
 % Applique la regle ⊔
 transformation_or(Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr) :-
-    evolue((I, C1), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
-    evolue((I, C2), Lie1, Lpt1, Li1, Lu1, Ls1, Lie2, Lpt2, Li2, Lu2, Ls2),
-    affiche_evolution_Abox(Ls, Lie, Lpt, Li, [(I, or(C1, C2)) | Lu], Abr, Ls2, Lie2, Lpt2, Li2, Lu2, Abr),
-    resolution(Lie2, Lpt2, Li2, Lu2, Ls2, Abr).
-transformation_or(_, _, _, [], _, _).
+    transformation_or_node(1, C1, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr),
+    transformation_or_node(2, C2, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr).
+
+% Applique la regle ⊔ sur un noeud
+transformation_or_node(Node, C, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr) :-
+    write("####################################################################"), nl, nl, 
+    write("Application de la regle ⊔ sur : "), nl, write("    "), affiche_concept((I, or(C1, C2))), nl,
+    write("Branche "), write(Node), nl, nl,
+    evolue((I, C), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
+    affiche_evolution_Abox(Ls, Lie, Lpt, Li, [(I, or(C1, C2)) | Lu], Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr),
+    write("####################################################################"), nl, nl,
+    resolution(Lie1, Lpt1, Li1, Lu1, Ls1, Abr).
 
 % ##### evolue #####
 % Ajoute une assertion a la ABox etendue (dans la liste appropriee)
@@ -387,34 +401,42 @@ evolue_multi([], Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls).
 
 % affichage de l'evolution de la ABox entre deux etats
 affiche_evolution_Abox(Ls, Lie, Lpt, Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr1) :-
-    nl, nl, write("Etat de la ABox étendue de départ :"), nl, nl,
-    affiche_ABox(Ls, Lie, Lpt, Li, Lu, Abr), nl, nl,
+    write("Info : Etat de la ABox étendue de départ :"), nl, nl,
+    affiche_ABox(Ls, Lie, Lpt, Li, Lu, Abr), nl,
 
-    nl, nl, write("Etat de la ABox étendue d'arrivée :"), nl, nl,
-    affiche_ABox(Ls1, Lie1, Lpt1, Li1, Lu1, Abr1), nl, nl.
+    write("Info : Etat de la ABox étendue d'arrivée :"), nl, nl,
+    affiche_ABox(Ls1, Lie1, Lpt1, Li1, Lu1, Abr1), nl.
 
 % affichage de la ABox (totalite)
 affiche_ABox(Ls, Lie, Lpt, Li, Lu, Abr) :-
-    affiche_Abr(Abr), nl,
-    affiche_Abi(Lie), nl,
-    affiche_Abi(Lpt), nl,
-    affiche_Abi(Li), nl,
-    affiche_Abi(Lu), nl,
+    affiche_Abr(Abr),
+    affiche_Abi(Lie),
+    affiche_Abi(Lpt),
+    affiche_Abi(Li),
+    affiche_Abi(Lu),
     affiche_Abi(Ls), nl.
 
 % affichage de la ABox (Assertion de role)
 affiche_Abr([]).
 affiche_Abr([(A, B, R) | Reste]) :-
+    write("   "),
     write("<"),write(A), write(","), write(B), write("> : "), write(R), nl,
     affiche_Abr(Reste).
 
 % affichage de la ABox (Assertion de concept)
 affiche_Abi([]).
 affiche_Abi([(A, C) | Reste]) :-
+    write("   "),
     write(A), write(" : "), affiche_concept(C), nl,
     affiche_Abi(Reste).
 
 % Affichade d'un concept
+affiche_concept(anything) :-
+    write("⊤").
+affiche_concept(nothing) :- 
+    write("⊥").
+affiche_concept((I, C)) :-
+    write(I), write(" : "), affiche_concept(C).
 affiche_concept(some(R,C)) :-
     write("∃"), write(R), write("."), affiche_concept(C).
 affiche_concept(all(R,C)) :-
@@ -433,6 +455,8 @@ affiche_concept(not(C)) :-
 % ####################################################################
 % ###################### Predicats auxilliaires ######################
 % ####################################################################
+
+setvalue(X, X).
 
 % definis dans le sujet
 
