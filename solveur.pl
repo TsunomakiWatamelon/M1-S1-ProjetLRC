@@ -111,6 +111,9 @@ autoref(Concept) :-
 
 % Verifie si un concept est autoreferent (Parcourss recursif de l'expression)
 conceptAutoref(Concept, Concept).
+conceptAutoref(Concept, ConceptA) :-
+    equiv(ConceptA, ConceptB),
+    conceptAutoref(Concept, ConceptB).
 conceptAutoref(Concept, some(Expression)) :-
     conceptAutoref(Concept, Expression).
 conceptAutoref(Concept, not(Expression)) :-
