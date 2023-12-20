@@ -191,6 +191,7 @@ acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi]) :-
     (isId(Inst) -> true; write("Warning : "), write(Inst), write(" n'est pas une instance"), nl, false),
     acquisition_type1_concept(C),
     (concept(C) -> true; write("Warning : "), write(C), write(" n'est pas un concept"), nl, false),
+    write("Info : Proposition a demontrer : "), write(Inst), write(" : "), write(C), nl,
     definitionAtomique(not(C), NCA),
     nnf(NCA, NCFinal).
 
@@ -228,7 +229,7 @@ suite(_,Abi,Abi1,Tbox) :-
 
 troisieme_etape(Abi,Abr) :- 
     tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls), nl,
-    not(resolution(Lie,Lpt,Li,Lu,Ls,Abr)) -> write("Result : La proposition initiale a ete demontree"), nl ; write("Result : La proposition initiale n\'a pas pu etre demontree"), nl.
+    not(resolution(Lie,Lpt,Li,Lu,Ls,Abr)) -> write("Result : La proposition initiale a ete demontree"), nl, true; write("Result : La proposition initiale n\'a pas pu etre demontree"), nl, false.
 
 % ##### tri_Abox #####
 % Genere les 5 listes de la ABox etendue pour pouvoir appliquer les regles de resolution
