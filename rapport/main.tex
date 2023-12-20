@@ -1,0 +1,568 @@
+\documentclass{rapportECL}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{titlesec}
+\usepackage[ruled,vlined,french, onelanguage]{algorithm2e}
+% For algorithms
+\usepackage{lipsum}
+\usepackage{enumitem}
+\RequirePackage{mathtools} %Paquet pour des équations et symboles mathématiques
+\usepackage{amssymb}
+\usepackage{listings}
+\lstdefinestyle{prologStyle}{
+    language=Prolog,
+    basicstyle=\ttfamily\small,
+    commentstyle=\color{green!50!black},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{gray},
+    numbers=left,
+    frame=single,
+    breaklines=true,
+    breakatwhitespace=true,
+    tabsize=4
+}
+\RequirePackage{siunitx} %Pour écrire avec la notation scientifique (Ex.: \num{2e+9})
+\RequirePackage[left=2cm,right=2cm,top=2cm,bottom=3.5cm]{geometry} %Configuration de la page
+\usepackage{multirow} % Inclure le package multirow dans le préambule du document
+\title{Rapport LRC} %Titre du fichier
+\begin{document}
+
+%----------- Informations du rapport ---------
+
+\titre{Démonstrateur en Prolog basé sur l’algorithme des tableaux}
+
+\enseignant{Colette \textsc{FAUCHER}} %Nom de l'enseignant
+
+\eleves{Hervé \textsc{NGUYEN} \\
+	Robin \textsc{SOARES} } %Nom des élèves
+
+%----------- Initialisation -------------------
+        
+\fairemarges %Afficher les marges
+\fairepagedegarde %Créer la page de garde
+
+%----------- abstract -------------------
+
+\begin{abstract}
+Dans ce projet, nous avons développé un démonstrateur en Prolog basé sur l'algorithme des tableaux pour la logique \textbf{ALC}.
+Le programme prend d'abord une TBox et une ABox à travers un fichier et vérifie sa validité au niveau formulation et syntaxe, puis prend en entrée une proposition de l'utilisateur afin de vérifier si cette proposition est valide dans le contexte de la ABox et la TBox.
+Pour obtenir ces résultats, il faut donc implémenter en Prolog l'algorithme des tableaux.
+
+\\
+\\
+
+
+\paragraph{Repository GitHub : } \url{https://github.com/TsunomakiWatamelon/M1-S1-ProjetLRC}
+
+\end{abstract}
+
+\newpage
+
+\tabledematieres %Créer la table de matières
+
+\section{Etape préliminaire de vérification et de mise en
+forme de la Tbox et de la Abox}
+
+\subsection{Correction syntaxique et sémantique}
+
+Dans cette première partie, nous vérifions la correction syntaxique et sémantique d'une Tbox et
+d’une Abox. Pour ce faire nous introduisons le prédicat \textbf{\textit{concept}} :
+
+\begin{lstlisting}[style=prologStyle, caption={Correction syntaxique}, label={synthaxique}]
+concept(Concept) :- isCA(Concept).
+concept(Concept) :- isCNA(Concept).
+concept(anything).
+concept(nothing).
+concept(not(Concept)) :- concept(Concept).
+concept(and(ConceptX,ConceptY)) :- concept(ConceptX), concept(ConceptY).
+concept(or(ConceptX, ConceptY)) :- concept(ConceptX), concept(ConceptY).
+concept(some(Role, Concept)) :- isR(Role), concept(Concept).
+concept(all(Role, Concept)) :- isR(Role), concept(Concept).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{concept}} vérifie si un terme est un concept atomique ou non atomique valide en effectuant des tests spécifiques sur sa structure. Si \textbf{\textit{concept(Concept)}} est vrai, alors \textbf{\textit{concept}} est considéré comme un concept syntaxiquement correct.
+
+\begin{lstlisting}[style=prologStyle, caption={Correction sémantique}, label={semantique}]
+getListe(CA, CNA, ID, R) :-
+    setof(X, cnamea(X), CA),
+    setof(X, cnamena(X), CNA), 
+    setof(X, iname(X), ID), 
+    setof(X, rname(X), R).
+
+isCA(X)  :- getListe(CA, CNA, ID, R), member(X, CA), not(member(X, CNA)), not(member(X, ID)), not(member(X, R)).
+isCNA(X) :- getListe(CA, CNA, ID, R), member(X, CNA), not(member(X, CA)), not(member(X, ID)), not(member(X, R)).
+isId(X)  :- getListe(CA, CNA, ID, R), member(X, ID), not(member(X, CA)), not(member(X, CNA)), not(member(X, R)).
+isR(X)   :- getListe(CA, CNA, ID, R), member(X, R), not(member(X, CA)), not(member(X, CNA)), not(member(X, ID)).
+\end{lstlisting}
+
+Les prédicats \textbf{\textit{isCA}}, \textbf{\textit{isCNA}}, \textbf{\textit{isID}} et \textbf{\textit{isR}} fournissent des moyens de classifier une entité en la comparant avec des listes prédéfinies de noms associés à différents types d'entités (CA, CNA, ID, R)
+Ils sont utilisés pour vérifier la validité sémantique des concepts, identifiants et relations dans notre TBox et ABox.
+
+\newpage
+
+\subsection{Verification de l'auto-référencement}
+
+L'auto-référencement peut introduire des ambiguïtés et compromettre la cohérence de la TBox et de l'ABox. Il est donc important de s'assurer qu'il n'y a pas d'auto-référencement. Nous introduisons donc les prédicats \textbf{\textit{autoref}} et \textbf{\textit{conceptAutoref}} : 
+
+\begin{lstlisting}[style=prologStyle, caption={Verification de l'auto-référencement}, label={autoref}]
+autoref(Concept) :-
+    equiv(Concept, Expression),
+    (not(conceptAutoref(Concept, Expression, [])) ->
+        write('Info : '), write(Concept), write(" n'est pas autoreferent"), nl, false
+    ; write('Info : '), write(Concept), write(" est soit autoréférent ou bien contient une expression autoréférente"), nl, true).
+conceptAutoref(Concept, Concept, _).
+
+conceptAutoref(Concept, ConceptA, Visited) :-
+    member(ConceptA, Visited);
+    equiv(ConceptA, ConceptB),
+    conceptAutoref(Concept, ConceptB, [ConceptA | Visited]).
+conceptAutoref(Concept, not(Expression), Visited) :-
+    member(not(Expression), Visited);
+    conceptAutoref(Concept, Expression, [not(Expression) | Visited]).
+conceptAutoref(Concept, and(Expression1, Expression2), Visited) :- 
+    member(and(Expression1, Expression2), Visited);
+    conceptAutoref(Concept, Expression1, [and(Expression1, Expression2) | Visited]);
+    conceptAutoref(Concept, Expression2, [and(Expression1, Expression2) | Visited]).
+conceptAutoref(Concept, or(Expression1, Expression2), Visited) :- 
+    member(or(Expression1, Expression2), Visited);
+    conceptAutoref(Concept, Expression1, [or(Expression1, Expression2) | Visited]);
+    conceptAutoref(Concept, Expression2, [or(Expression1, Expression2) | Visited]).
+conceptAutoref(Concept, some(R, Expression), Visited) :-
+    member(some(R, Expression), Visited);
+    conceptAutoref(Concept, Expression, [some(R, Expression) | Visited]).
+conceptAutoref(Concept, all(R, Expression), Visited) :-
+    member(all(R, Expression), Visited);
+    conceptAutoref(Concept, Expression, [all(R, Expression) | Visited]).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{autoref}} prend un concept en argument et utilise la relation d'équivalence \textbf{\textit{equiv}} définie dans le fichier \textit{tabox.pl} pour obtenir une expression équivalente au concept donné. Ensuite, il appelle le prédicat \textbf{\textit{conceptAutoref}} pour vérifier s'il y a une auto-référence dans l'expression équivalente.
+Le prédicat \textbf{\textit{conceptAutoref}} vérifie si le concept donné est identique à l'expression. Pour les expressions composées telles que some, not, and, or, all, il vérifie si le concept s'auto-réfère dans au moins l'une des sous-expressions. Et pour les cas particuliers, tels que \textbf{some(\_, Expression)} et \textbf{all(\_, Expression)}, le concept est testé pour une auto-référence dans l'expression associée.
+
+On peut également retrouver aussi l'utilisation d'une liste de "noeuds" visités afin de détécter si le concept de base contient un autre sous-concept autoréférent afin de ne pas rentrer dans une boucle de récursion infinie.
+
+\subsection{Mise en forme de la TBox et de la ABox}
+
+Nous devons ensuite obtenir une definition ne contenant que des concepts atomiques et la mettre sous forme normale négative.
+
+\begin{lstlisting}[style=prologStyle, caption={Mise en forme}, label={mef}]
+definitionAtomique(Definition, Definition) :-
+    cnamea(Definition).
+definitionAtomique(Definition, Res) :- equiv(Definition, X), definitionAtomique(X, Res).
+definitionAtomique(not(Definition), not(Res)) :-
+    definitionAtomique(Definition, Res).
+definitionAtomique(or(D1,D2), or(R1,R2)) :-
+    definitionAtomique(D1,R1),
+    definitionAtomique(D2,R2).
+definitionAtomique(and(D1,D2), and(R1,R2)) :-
+    definitionAtomique(D1,R1),
+    definitionAtomique(D2,R2).
+definitionAtomique(some(Role, Definition), some(Role, Res)) :-
+    definitionAtomique(Definition, Res).
+definitionAtomique(all(Role,Definition), all(Role, Res)) :-
+    definitionAtomique(Definition, Res).
+
+remplacement([], []).
+remplacement([(Concept, Definition) | Reste], [(Concept, DefinitionTraite) | ResteTraite]) :-
+    definitionAtomique(Definition, Atomique),
+    nnf(Atomique, DefinitionTraite),
+    remplacement(Reste, ResteTraite).
+\end{lstlisting}
+
+\label{definitionAt}
+
+Le prédicat \textbf{\textit{definitionAtomique}} nous permet d'obtenir une formule ne contenant que des concepts atomiques. Cela nous permet ensuite d'utiliser le prédicat \textbf{\textit{remplacement}} qui va remplacer les concepts de la TBox et la ABox par des concepts composés de termes atomiques et les mettres sous forme normale négative.
+
+\begin{lstlisting}[style=prologStyle, caption={Traitement}, label={traitement}]
+traitement_Tbox(Initial, TBox) :- remplacement(Initial, TBox).
+traitement_Abox(Initial, ABoxC) :- remplacement(Initial, ABoxC).
+\end{lstlisting}
+
+Finalement, on utilise le prédicat \textbf{\textit{remplacement}} pour traiter la TBox et la ABox dans les prédicats \textbf{\textit{traitement\_Tbox}} et \textbf{\textit{traitement\_Abox}}. 
+
+\newpage
+
+\section{Saisie de la proposition à démontrer}
+
+Dans cette partie, nous allons implémenter la saisie et le traitement d'une proposition à démontrer. On cherche à ajouter la négation dans la ABox étendue.
+
+L'utilisateur peut choisir la proposition parmi deux formes :
+
+\begin{enumerate}[label=-]
+    \item Proposition de type \textit{I : C}
+    \item Proposition de type \textit{\(C_1 \sqcap C_2 \sqsubseteq \bot\)}
+\end{enumerate}
+
+\begin{lstlisting}[style=prologStyle, caption={Saisie de la proposition}, label={saisie}]
+deuxieme_etape(Abi,Abi1,Tbox) :-
+    saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox).
+
+saisie_et_traitement_prop_a_demontrer(Abi,Abi1,Tbox) :-
+    nl,write("Entrez le numero du type de proposition que vous voulez demontrer :"),nl,
+    write("1 Une instance donnee appartient a un concept donne."), nl,
+    write("2 Deux concepts n\'ont pas d\'elements en commun(ils ont une intersection vide)."),nl, read(R), suite(R,Abi,Abi1,Tbox).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{saisie\_et\_traitement\_prop\_a\_demontrer}} permet à l'utilisateur de choisir entre les deux types de propositions. Le choix \textit{1} correspond à la proposition de type \textit{I : C} et le choix \textit{2} correspond à la proposition de type \textit{\(C_1 \sqcap C_2 \sqsubseteq \bot\)}
+
+\subsection{Proposition de type \textit{\(I : C\)} (1)}
+
+\begin{lstlisting}[style=prologStyle, caption={Traitement de la proposition de type 1}, label={prop1}]
+acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi],Tbox) :-
+    acquisition_type1_instance(Inst),
+    (isId(Inst) -> true; write(Inst), write(" n'est pas une instance"), nl, false),
+    acquisition_type1_concept(C),
+    (concept(C) -> true; write(C), write(" n'est pas un concept"), nl, false), nl
+    write('Info : Proposition a demontrer \"'), write(Inst), write(' : '), affiche_concept(C), write('\"'), nl,
+    definitionAtomique(not(C), NCA),
+    nnf(NCA, NCFinal).
+\end{lstlisting}
+
+\begin{lstlisting}[style=prologStyle, caption={Saisie de l'instance et du concept pour les propositions de type 1}, label={inst_conc1}]
+acquisition_type1_instance(Inst) :- 
+    nl,write("Entrez le nom de l\'instance de votre proposition :"),nl,read(Inst).
+
+acquisition_type1_concept(C) :- 
+    nl,write("Entrez le nom du concept de votre proposition :"),nl,read(C).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{acquisition\_prop\_type1}} utilise les prédicats \textbf{\textit{acquisition\_type1\_instance}} et \textbf{\textit{acquisition\_type1\_concept}} qui nous permettent d'obtenir l'instance et le concept puis de verifier s'ils sont valides. Ensuite il génère la négation du concept et le mets sous forme normale négative mettant à jour l'abstraction avec la proposition de type 1.
+
+\subsection{Proposition de type \textit{\(C_1 \sqcap C_2 \sqsubseteq \bot\)} (2)}
+
+\begin{lstlisting}[style=prologStyle, caption={Traitement de la proposition de type 2}, label={prop2}]
+acquisition_type2_concept(C,1) :-
+    nl,write("Entrez le nom du premier concept C1 de votre proposition :"),nl,read(C).
+acquisition_type2_concept(C,2) :-
+    nl,write("Entrez le nom du deuxieme concept C2 de votre proposition :"),nl,read(C).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{acquisition\_type2\_concept}} est utilisé dans le prédicat \newline \textbf{\textit{acquisition\_prop\_type2}} et permet à l'utilisateur de saisir un concept, soit pour le premier concept C1 si l'argument est \textit{1}, soit pour le deuxième concept C2 si l'argument est \textit{2}.
+
+\begin{lstlisting}[style=prologStyle, caption={Saisie des deux concepts pour les propositions de type 2}, label={inst_conc2}]
+acquisition_prop_type2(Abi, [(Inst, and(CA1Final, CA2Final))|Abi]) :-
+    genere(Inst),
+    acquisition_type2_concept(C1,1),
+    (concept(C1) -> true; write("Warning : "), write(C1), write(" n'est pas un concept"), nl, false),
+    acquisition_type2_concept(C2,2),
+    (concept(C2) -> true; write("Warning : "), write(C2), write(" n'est pas un concept"), nl, false), nl
+    write('Info : Proposition a demontrer \" '), affiche_concept(C1), write(' inter '), affiche_concept(C2), write(' include bottom\"'), nl,
+    definitionAtomique(C1, CA1), definitionAtomique(C2, CA2),
+    nnf(CA1, CA1Final), nnf(CA2, CA2Final).
+\end{lstlisting}
+
+La negation de \textit{\(C1 \sqcap C2 \sqsubseteq \bot\)} étant \textit{\(\exists I : C1 \sqcap C2\)}, on veut donc ajouter cette dernière dans la TBox.
+
+Le prédicat \textbf{\textit{acquisition\_prop\_type2}} permet alors d'acquérir la première proposition et ajoute sa négation dans la ABox étendu en générant alors une instance \textit{Inst} avec un nom unique. Il vérifie d'ailleurs que les concepts \textit{C1} et \textit{C2} sont valides puis on obtient leurs forme normales négative via \textbf{\textit{nnf}} et on remplace toutes sous-expressions de concepts non-atomiques par leur équivalent en forme atomique.
+
+\newpage
+
+\section{Démonstration de la proposition}
+
+Dans cette dernière partie, nous allons implémenter l'algorithme qui reprends la méthode des tableaux.
+
+Pour démontrer que la proposition entrée dans la partie 2 est présente, on développe alors la ABox avec l'algorithme des tableaux. On cherche alors à trouver la présence d'un clash parmis les feuilles qui seront trouvés à travers de l'algorithme.
+
+Une feuille ayant un clash est donc une feuille ouverte dans le contexte de l'algorithme tandis qu'une feuille sans clash est une feuille fermée.
+
+\subsection{Tri et partionnement de la ABox}
+
+Pour procéder à la l'algorithme, il faut trier et partionner la ABox étendue en plusieurs listes qui contiennent respectivement :
+
+\begin{enumerate}[label=-]
+    \item  Pour les assertion de la forme \textit{\(I : \exists R.C\)}, on les ajoutes dans la liste Lie.
+    \item  Pour les assertion de la forme \textit{\(I : \forall R.C\)}, dans la liste Lpt.
+    \item  Pour les assertion de la forme \textit{\(I : C1 \sqcap C2 \)}, dans la liste Lpt.
+    \item  Pour les assertion de la forme \textit{\(I : C1 \sqcup C2 \)}, dans la liste Lu.
+    \item  Pour les assertion de la forme \textit{\(I : C \)} ou \textit{\(I : \neg C \)}, dans la liste Ls.
+    \item  Les assertions de rôles étant déjà dans Abr, on n'a pas besoins de traitements additionels.
+\end{enumerate}
+
+\begin{lstlisting}[style=prologStyle, caption={Tri de la ABox}, label={tri_Abox}]
+tri_Abox([], [], [], [], [], []).
+tri_Abox([(I, some(R,C))|Abi],[(I, some(R,C)) | Lie],Lpt,Li,Lu,Ls) :-
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+tri_Abox([(I, all(R,C))|Abi],Lie,[(I, all(R,C)) | Lpt],Li,Lu,Ls) :-
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+tri_Abox([(I, and(C1,C2))|Abi],Lie,Lpt, [(I, and(C1,C2)) | Li],Lu,Ls) :-
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+tri_Abox([(I, or(C1,C2))|Abi],Lie,Lpt,Li,[(I, or(C1,C2)) | Lu],Ls) :-
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+tri_Abox([(I, C) | Abi],Lie,Lpt,Li,Lu,[(I, C) | Ls]) :-
+    cnamea(C),
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+tri_Abox([(I, not(C)) | Abi],Lie,Lpt,Li,Lu,[(I, not(C)) | Ls]) :-
+    cnamea(C),
+    tri_Abox(Abi,Lie,Lpt,Li,Lu,Ls).
+\end{lstlisting}
+
+A l'aide de ces listes, nous pouvons alors commencer à appliquer la méthodes des tableaux.
+
+\newpage
+
+\subsection{Résolution de la proposition par l'algorithme des tableaux}
+
+La récursion se fait à partir du prédicat resolution qui est alors le point de départ et de récursion de l'algorithme.
+
+\begin{lstlisting}[style=prologStyle, caption={Resolution}, label={resolution}]
+resolution(Lie, Lpt, Li, Lu, Ls, Abr) :-
+    not(contient_clash(Ls)),
+    complete_some(Lie, Lpt, Li, Lu, Ls, Abr).
+resolution([], Lpt, Li, Lu, Ls, Abr) :-
+    not(contient_clash(Ls)),
+    deduction_all([], Lpt, Li, Lu, Ls, Abr).
+resolution([], [], Li, Lu, Ls, Abr) :- 
+    not(contient_clash(Ls)),
+    transformation_and([], [], Li, Lu, Ls, Abr).
+resolution([], [], [], Lu, Ls, Abr) :-
+    not(contient_clash(Ls)),
+    transformation_or([], [], [], Lu, Ls, Abr).
+resolution([], [], [], [], Ls, Abr) :-
+    not(contient_clash(Ls)).
+\end{lstlisting}
+
+Au début de chaque récursion de l'algorithme, on vérifie d'abord si il y a un clash via le prédicat \textbf{\textit{contient\_clash}} dans la ABox (cf Listing \ref{clash}), c'est-à-dire que Ls contient deux assertion contradictoires.
+
+Puis le prédicat \textbf{\textit{resolution}} tente d'appliquer une par une les règles de resolution de la méthodes des tableaux jusqu'à que ces dernières ne peuvent plus être appliqués en suivant cet l'ordre de priorité des règles suivante : (\textit{\( \exists \)}, \textit{\( \forall \) }, \textit{\( \sqcap \)}, \textit{\( \sqcup \)}).
+Lorsque aucune règles de résolution ne peuvent être appliqués, une dernière vérification pour les clashs se fait.
+
+\begin{lstlisting}[style=prologStyle, caption={Verification de clash dans la ABox}, label={clash}]
+contient_clash([]) :- false.
+contient_clash([(I, C) | Reste]) :-
+    nnf(not(C), C1),
+    member((I, C1), Reste) -> write("CLASH : Un clash a ete detecte"), nl,true ; contient_clash(Reste).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{contient\_clash}} cherche à trouver la présence de deux assertion sur une même instance qui sont contradictoires entre eux. Cela revient à prendre la tête d'une liste et vérifier la présence de sa négation parmis le reste de la liste.
+
+Dans notre programme, \textbf{\textit{contient\_clash}} est utilisé exclusivement sur la liste Ls de la ABox étendue car c'est celle-ci qui contient les assertions de la forme \textit{\(I : C\)} et \textit{\(I : \neg C\)}.
+
+\subsubsection{Règle \(\exists\)}
+
+La règle de résolution \textit{\( \exists \)} est traitée par le prédicat \textbf{\textit{complete\_some}} qui ajoute dans la ABox les deux assertions \textit{\( <a,b> : R \)} et \textit{\( b : C \)} lorsque l'on traite l'assertion de la forme \textit{\( a : \exists R.C \)}.
+
+\newpage
+
+\begin{lstlisting}[style=prologStyle, caption={Application de la regle \(\exists\)}, label={exists}]
+complete_some([(A, some(R,C)) | Lie],Lpt,Li,Lu,Ls,Abr) :-
+    write("Application de la regle exists sur : "), nl, write("    "), affiche_concept((A, some(R,C))), nl, nl,
+    genere(B),
+    evolue((B, C), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
+    affiche_evolution_Abox(Ls, [(A, some(R,C)) | Lie], Lpt, Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, [(A, B, R) | Abr]),
+    resolution(Lie1, Lpt1, Li1, Lu1, Ls1, [(A, B, R) | Abr]).
+\end{lstlisting}
+
+En ajoutant ces deux propositions dans la ABox, on génère aussi une nouvelle instance pour \textit{\( b \)}. L'ajout de \textit{\( b : C \)} se fait avec le prédicat \textbf{\textit{evolue}}, l'ajout de \textit{\( <a,b> : R \)} se fait évidemment sur la liste Abr à la fin où on s'apprête à relancer une nouvelle itération.
+
+On affiche aussi entre-temps l'état des ABox avant et après l'application de chaque règles de résolution avec le prédicat \textbf{\textit{affiche\_evolution\_Abox}}.
+
+\begin{lstlisting}[style=prologStyle, caption={Évolution de la ABox suite à l'ajout d'une assertion}, label={evolue}]
+evolue((I, C), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    cnamea(C),
+    member((I, C), Ls).
+evolue((I, C), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, [(I, C) | Ls]) :-
+    cnamea(C),
+    not(member((I, C), Ls)).
+evolue((I, not(C)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    cnamea(C),
+    member((I, not(C)), Ls).
+evolue((I, not(C)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, [(I, not(C)) | Ls]) :-
+    cnamea(C),
+    not(member((I, not(C)), Ls)).
+evolue((I, some(R, C)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    member((I, some(R, C)), Lie).
+evolue((I, some(R, C)), Lie, Lpt, Li, Lu, Ls, [(I, some(R,C)) | Lie], Lpt, Li, Lu, Ls) :-
+    not(member((I, some(R, C)), Lie)).
+evolue((I, all(R, C)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    member((I, all(R, C)), Lpt).
+evolue((I, all(R, C)), Lie, Lpt, Li, Lu, Ls, Lie, [(I, all(R,C)) | Lpt], Li, Lu, Ls) :-
+    not(member((I, all(R, C)), Lpt)).
+evolue((I, and(C1, C2)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    member((I, and(C1, C2)), Li).
+evolue((I, and(C1, C2)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, [(I, and(C1,C2)) | Li], Lu, Ls) :-
+    not(member((I, and(C1, C2)), Li)).
+evolue((I, or(C1, C2)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls) :-
+    member((I, or(C1, C2)), Lu).
+evolue((I, or(C1, C2)), Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, [(I, or(C1,C2)) | Lu], Ls) :-
+    not(member((I, or(C1, C2)), Lu)).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{evolue(A, Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1)}} tente d'ajouter dans la ABox l'assertion de concept \textit{A} si elle n'est pas déjà présente dedans. Selon la nature de l'assertion, on l'ajoute dans une liste parmis \textit{Lie, Lpt, Li, Lu, Ls}.
+
+La ABox résultante est alors représentée par \textit{Lie1, Lpt1, Li1, Lu1, Ls1}.
+
+
+Pour afficher l'état des deux ABox, on utilise le prédicat \textbf{\textit{affiche\_evolution\_Abox}} qui affiche l'état des deux ABox que l'on fournira au prédicat.
+
+\textbf{\textit{affiche\_evolution\_Abox}} affiche alors les deux ABox avec \textbf{\textit{affiche\_ABox}} qui affiche le contenu d'une ABox.
+
+\textbf{\textit{affiche\_ABox}} quant à elle, se sert de \textbf{\textit{affiche\_Abr}} et \textbf{\textit{affiche\_Abi}} pour afficher respectivement les assertions de rôles et les assertions de concepts.
+
+\begin{lstlisting}[style=prologStyle, caption={Affichage de l'état de la ABox avant et après l'application d'une règle de résolution}, label={AffichageAbox}]
+affiche_evolution_Abox(Ls, Lie, Lpt, Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr1) :-
+    write("Info : Etat de la ABox etendue de depart :"), nl, nl,
+    affiche_ABox(Ls, Lie, Lpt, Li, Lu, Abr), nl,
+
+    write("Info : Etat de la ABox etendue d'arrivee :"), nl, nl,
+    affiche_ABox(Ls1, Lie1, Lpt1, Li1, Lu1, Abr1), nl.
+
+affiche_ABox(Ls, Lie, Lpt, Li, Lu, Abr) :-
+    affiche_Abr(Abr),
+    affiche_Abi(Lie),
+    affiche_Abi(Lpt),
+    affiche_Abi(Li),
+    affiche_Abi(Lu),
+    affiche_Abi(Ls), nl.
+\end{lstlisting}
+
+\textbf{\textit{affiche\_Abr}} parcours simplement la liste d'assertion de rôle fournie et l'affiche ligne par ligne.
+
+Tandis que \textbf{\textit{affiche\_Abi}} fonctionne de manière très similaire à \textbf{\textit{affiche\_Abr}} mais se sert de \textbf{\textit{affiche\_concept}} pour afficher les concepts à l'intérieur de l'assertion.
+
+\newpage
+
+\begin{lstlisting}[style=prologStyle, caption={Affichage d'une liste d'assertion}, label={AffichageListeAssertion}]
+affiche_Abr([]).
+affiche_Abr([(A, B, R) | Reste]) :-
+    write("   "),
+    write("<"),write(A), write(","), write(B), write("> : "), write(R), nl,
+    affiche_Abr(Reste).
+
+affiche_Abi([]).
+affiche_Abi([(A, C) | Reste]) :-
+    write("   "),
+    write(A), write(" : "), affiche_concept(C), nl,
+    affiche_Abi(Reste).
+\end{lstlisting}
+
+
+\textbf{\textit{affiche\_concept}} fonctionne de manière récursive et parcours la structure du concept pour afficher les sous-concepts utilisés dans la définition du concept de départ.
+
+Pour des raisons techniques au niveau de LaTeX, nous avons remplacé les expressions : \textit{\( \exists \)}, \textit{\( \forall \) }, \textit{\( \sqcap \)}, \textit{\( \sqcup \)}, \textit{\( \bot \)}, \textit{\( \top \)}, \textit{\( \neg \)}.
+
+Par : exists, forall, inter, union, bottom, top, not.
+
+Dans le code affiché ci-dessous.
+
+\begin{lstlisting}[style=prologStyle, caption={Affichage d'une liste d'assertion}, label={AffichageConcept}]
+affiche_concept(anything) :-
+    write("top").
+affiche_concept(nothing) :- 
+    write("bottom").
+affiche_concept((I, C)) :-
+    write(I), write(" : "), affiche_concept(C).
+affiche_concept(some(R,C)) :-
+    write("exists"), write(R), write("."), affiche_concept(C).
+affiche_concept(all(R,C)) :-
+    write("forall"), write(R), write("."), affiche_concept(C).
+affiche_concept(and(C1,C2)) :-
+    write("("), affiche_concept(C1), write(" inter "), affiche_concept(C2), write(")").
+affiche_concept(or(C1,C2)) :-
+    write("("), affiche_concept(C1), write(" union "), affiche_concept(C2), write(")").
+affiche_concept(C) :-
+    cnamea(C),
+    write(C).
+affiche_concept(not(C)) :-
+    write("not"), affiche_concept(C).
+\end{lstlisting}
+
+\newpage
+
+\subsubsection{Règle \(\forall\)}
+
+Le prédicat \textbf{\textit{deduction\_all}} représente l'application de la règle \(\forall\).
+
+\begin{lstlisting}[style=prologStyle, caption={Application de la regle \(\forall\)}, label={forall}]
+deduction_all(Lie, [(I, all(R, C)) | Lpt], Li, Lu, Ls, Abr) :- 
+    write("Application de la regle forall sur : "), nl, write("    "), affiche_concept((I, all(R,C))), nl, nl,
+    write("Abr"), nl, affiche_Abr(Abr), nl,
+    findall((B, C), member((I, B, R), Abr), L),
+    evolue_multi(L, Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
+    affiche_evolution_Abox(Ls, Lie, [(I, all(R, C)) | Lpt], Li, Lu, Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr),
+    resolution(Lie1, Lpt1, Li1, Lu1, Ls1, Abr).
+\end{lstlisting}
+
+L'utilisation de \textit{findall((B, C), member((I, B, R), Abr), L)} nous permet d'obtenir la liste des instances \textit{b} où nous avons dans la ABox l'assertion de rôle \textit{\( <a,b> : R \)} (pour le rôle \textit{R} de l'assertion \textit{\( a : \forall R.C \)} en traitement). Nous stockons donc les assertion \textit{ b : C } dans \textit{L} et nous faisons appel au prédicat \textbf{\textit{evolue\_multi}} pour toutes les ajouter dans la ABox.
+
+\begin{lstlisting}[style=prologStyle, caption={Évolution de la ABox à partir d'une liste assertion}, label={evolue_multi}]
+evolue_multi([Elem | Reste], Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1) :-
+    evolue(Elem, Lie, Lpt, Li, Lu, Ls, Lie2, Lpt2, Li2, Lu2, Ls2),
+    evolue_multi(Reste, Lie2, Lpt2, Li2, Lu2, Ls2, Lie1, Lpt1, Li1, Lu1, Ls1).
+evolue_multi([], Lie, Lpt, Li, Lu, Ls, Lie, Lpt, Li, Lu, Ls).
+\end{lstlisting}
+
+Le prédicat \textbf{\textit{evolue\_multi}} fait appel à \textbf{\textit{evolue}} (cf Listing \ref{evolue}) sur le premier \textit{Elem} de la liste, puis un appel récursif sur le \textit{Reste}. La recursion s'arrete lorsque la liste est vide.
+
+Finalement, on affiche l'evolution de la ABox via \textbf{\textit{affiche\_evolution\_Abox}}(cf Listing \ref{AffichageAbox}) et on recommence une nouvelle itération de l'algorithme en traitant un nouveau noeud.
+
+\newpage
+
+\subsubsection{Règle  \(\sqcap\)}
+
+Pour appliquer la règle \textit{\( \sqcap \)} le prédicat \textbf{\textit{transformation\_and}} ajoute dans la ABox les assertion \textit{I : C1} et \textit{I : C2} à partir de l'assertion \textit{\( I : C1 \sqcap C2 \)}.
+
+Et affiche l'état des ABox de départ et son état après l'application de la règle \textit{\(\sqcap\)}.
+
+Pour enfin continuer et relancer une nouvelle itération de l'algorithme pour un nouveau noeud.
+
+\begin{lstlisting}[style=prologStyle, caption={Application de la regle \(\sqcap\)}, label={and}]
+transformation_and(Lie,Lpt,[(I, and(C1, C2)) | Li],Lu,Ls,Abr) :-
+    write("Application de la regle inter sur : "), nl, write("    "), affiche_concept((I, and(C1, C2))), nl, nl,
+    evolue((I, C1), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
+    evolue((I, C2), Lie1, Lpt1, Li1, Lu1, Ls1, Lie2, Lpt2, Li2, Lu2, Ls2),
+    affiche_evolution_Abox(Ls, Lie, Lpt, [(I, and(C1, C2)) | Li], Lu, Abr, Ls2, Lie2, Lpt2, Li2, Lu2, Abr),
+    resolution(Lie2, Lpt2, Li2, Lu2, Ls2, Abr).
+\end{lstlisting}
+
+\subsubsection{Règle  \(\sqcup\)}
+
+Pour appliquer la règle \textit{\( \sqcup \)} le prédicat \textbf{\textit{transformation\_or}} crée deux noeuds frères dans l'arbre de l'algorithme pour ajouter dans la ABox \textit{\( I : C1 \)} et \textit{\( I : C2 \)} respectivement dans le premier noeud et deuxième noeud crée.
+
+Les deux noeuds sont crée à travers le prédicat \textbf{\textit{transformation\_or\_node(Node,C,Lie,Lpt,Li,[(I,or(C1, C2))|Lu],Ls,Abr)}}, où Node représente la numérotation d'un des deux noeuds crées dans la règle \textit{\(\sqcup\)} pour les distinguer via un affichage, et \textit{C1} et \textit{C2} sont les concepts qui seront traité ( pour ajouter soit l'assertion \textit{ I : C1} ou \textit{I : C2} dans la ABox) dans ce noeud.
+
+L'algorithme continue toujours aussi après l'application de la règles respectivement dans les deux branches qui sont donc crées par \textbf{\textit{transformation\_or}}.
+
+\begin{lstlisting}[style=prologStyle, caption={Application de la regle \(\sqcup\)}, label={or}]
+transformation_or(Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr) :-
+    transformation_or_node(1, C1, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr),
+    transformation_or_node(2, C2, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr).
+
+transformation_or_node(Node, C, Lie,Lpt,Li,[(I, or(C1, C2)) | Lu],Ls,Abr) :-
+    write("Application de la regle union sur : "), nl, write("    "), affiche_concept((I, or(C1, C2))), nl,
+    write("Branche "), write(Node), nl, nl,
+    evolue((I, C), Lie, Lpt, Li, Lu, Ls, Lie1, Lpt1, Li1, Lu1, Ls1),
+    affiche_evolution_Abox(Ls, Lie, Lpt, Li, [(I, or(C1, C2)) | Lu], Abr, Ls1, Lie1, Lpt1, Li1, Lu1, Abr),
+    resolution(Lie1, Lpt1, Li1, Lu1, Ls1, Abr).
+\end{lstlisting}
+
+\newpage
+
+\appendix
+
+\section{Annexe}
+
+\subsection{Manipulation du programme}
+
+Le programme est codé dans le fichier \textit{solveur.pl} et il suffit de le charger dans \textit{swipl}.
+Par défaut la TBox et la ABox sont contenues dans le fichier \textit{tabox.pl}, pour changer de TBox et ABox on peut soit changer le contenu de \textit{tabox.pl} ou bien changer le fichier à charger dans le prédicat \textit{programme} dans le code au lieu d'avoir \textit{tabox.pl}.
+
+\subsection{Tests}
+
+Les jeux de test sont disponibles dans le fichier à la fin du fichier \textit{solveur.pl}. Il suffit de le charger dans \textit{swipl} et de lancer le test que vous désirez.\newline
+
+Les tests disponibles sont :
+\begin{enumerate}[label=-]
+    \item \textit{{test\_autoref}} pour le prédicat \textit{{autoref}}, qui utilise le fichier \textit{tabox\_autoref.pl} dans le sous-répertoire test pour le tester sur des concepts autoréférents.
+    \item \textit{{test\_concept}} pour le prédicat \textit{{concept}}
+    \item \textit{{test\_partie3}} pour le prédicat \textit{{troisieme\_etape}} pour tester l'ensemble de l'algorithme de résolution\newline
+\end{enumerate}
+
+Par exemple si nous voulons tester le prédicat \textbf{\textit{autoref()}}, nous allons appeler \newline \textbf{\textit{test\_autoref()}}. Il est aussi possible de lancer tous les tests simultanément via \textbf{\textit{test()}}. Ce dernier affichera interprétation de tous les tests effectués.\newline
+
+Pour tester les prédicats \textbf{\textit{acquisition\_prop\_type1()}} et 
+\textbf{\textit{acquisition\_prop\_type2()}} il suffit de lancer le solveur naturellement et de tester lorsque le programme vous le demande les propositions de type 1 ou 2 et de lui donner différent concepts choisis spécialement pour le test.\newline 
+
+Le test \textbf{\textit{test\_partie3()}} regroupe un test de tous les prédicats utilisé dans la partie 3. Il suffit de modifier \textit{getAbi} et \textit{getAbr} si vous souhaitez modifier Abi et Abr.
+
+Par défaut, Abi et Abr dans ce test correspondent à ce qu'on aurait si on demande au programme de résoudre \textit{\(auteur \sqcap sculpteur \sqsubseteq \bot\)} à partir de la TBox et la ABox du sujet. Michel-Ange étant un sculpteur et un auteur, le programme ne devrait pas trouver de clash donc \textbf{\textit{troisieme\_etape(Abi1,Abr)}} doit donner false.
+
+\end{document}
