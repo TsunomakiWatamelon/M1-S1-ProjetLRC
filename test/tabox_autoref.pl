@@ -1,3 +1,8 @@
+:- discontiguous cnamea/1.
+:- discontiguous cnamena/1.
+:- discontiguous rname/1.
+:- discontiguous equiv/2.
+
 % Sculpture autoreferent avec sculpteur 
 rname(creePar).
 equiv(sculpture, and(objet, all(creePar,sculpteur))).
@@ -10,8 +15,10 @@ cnamea(personne).
 cnamea(jeu).
 cnamena(joueur).
 rname(aJoue).
-equiv(joueur, and(gamer, some(jeu, aJoue))).
+rname(jouePar).
 cnamea(gamer).
+equiv(joueur, and(gamer, some(aJoue, jeu))).
+equiv(jeu, and(jeu, all(jouePar, or(joueur, gamer)))).
 
 % Marque auto referent avec entreprise et fabriquant
 cnamea(chevrolet).
@@ -21,5 +28,5 @@ cnamena(frabriquant).
 cnamea(voiture).
 rname(aFabrique).
 equiv(marque, and(entreprise, all(creePar, chevrolet))).
-equiv(entreprise, or(frabriquant, personne)).
+equiv(entreprise, or(fabriquant, personne)).
 equiv(fabriquant, and(marque , some(aFabrique, voiture))).

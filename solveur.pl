@@ -2,6 +2,8 @@
 % M1 Informatique SU
 % Robin Soares & Herve Nguyen
 
+:- discontiguous cnamea/1.
+
 programme() :- load_files('tabox.pl'),
                premiere_etape(Tbox,Abi,Abr),
                deuxieme_etape(Abi,Abi1,TBox),
@@ -107,27 +109,39 @@ correctionABoxR([(Instance1, Instance2, Role) | Reste]) :- isId(Instance1), isId
 % Verifie si un concept est autoreferent
 autoref(Concept) :-
     equiv(Concept, Expression),
-    (not(conceptAutoref(Concept, Expression)) -> write('Info : '), write(Concept), write(" n\'est pas autoreferent"), nl, false ; true).
+    (not(conceptAutoref(Concept, Expression, [])) ->
+        write('Info : '), write(Concept), write(" n'est pas autoreferent"), nl, false
+    ; write('Info : '), write(Concept), write(" est soit autoréférent ou bien contient une expression autoréférente"), nl, true).
 
 % Verifie si un concept est autoreferent (Parcourss recursif de l'expression)
-conceptAutoref(Concept, Concept).
-conceptAutoref(Concept, ConceptA) :-
+conceptAutoref(Concept, Concept, _).
+
+conceptAutoref(Concept, ConceptA, Visited) :-
+    member(ConceptA, Visited);
     equiv(ConceptA, ConceptB),
-    conceptAutoref(Concept, ConceptB).
-conceptAutoref(Concept, some(Expression)) :-
-    conceptAutoref(Concept, Expression).
-conceptAutoref(Concept, not(Expression)) :-
-    conceptAutoref(Concept, Expression).
-conceptAutoref(Concept, and(Expression1, Expression2)) :- 
-    conceptAutoref(Concept, Expression1);
-    conceptAutoref(Concept, Expression2).
-conceptAutoref(Concept, or(Expression1, Expression2)) :- 
-    conceptAutoref(Concept, Expression1);
-    conceptAutoref(Concept, Expression2).
-conceptAutoref(Concept, some(_, Expression)) :-
-    conceptAutoref(Concept, Expression).
-conceptAutoref(Concept, all(_, Expression)) :-
-    conceptAutoref(Concept, Expression).
+    conceptAutoref(Concept, ConceptB, [ConceptA | Visited]).
+
+conceptAutoref(Concept, not(Expression), Visited) :-
+    member(not(Expression), Visited);
+    conceptAutoref(Concept, Expression, [not(Expression) | Visited]).
+
+conceptAutoref(Concept, and(Expression1, Expression2), Visited) :- 
+    member(and(Expression1, Expression2), Visited);
+    conceptAutoref(Concept, Expression1, [and(Expression1, Expression2) | Visited]);
+    conceptAutoref(Concept, Expression2, [and(Expression1, Expression2) | Visited]).
+
+conceptAutoref(Concept, or(Expression1, Expression2), Visited) :- 
+    member(or(Expression1, Expression2), Visited);
+    conceptAutoref(Concept, Expression1, [or(Expression1, Expression2) | Visited]);
+    conceptAutoref(Concept, Expression2, [or(Expression1, Expression2) | Visited]).
+
+conceptAutoref(Concept, some(R, Expression), Visited) :-
+    member(some(R, Expression), Visited);
+    conceptAutoref(Concept, Expression, [some(R, Expression) | Visited]).
+
+conceptAutoref(Concept, all(R, Expression), Visited) :-
+    member(all(R, Expression), Visited);
+    conceptAutoref(Concept, Expression, [all(R, Expression) | Visited]).
 
 
 % Obtenir une definition ne contenant que de concepts atomiques
@@ -190,8 +204,8 @@ acquisition_prop_type1(Abi, [(Inst, NCFinal) | Abi]) :-
     acquisition_type1_instance(Inst),
     (isId(Inst) -> true; write("Warning : "), write(Inst), write(" n'est pas une instance"), nl, false),
     acquisition_type1_concept(C),
-    (concept(C) -> true; write("Warning : "), write(C), write(" n'est pas un concept"), nl, false),
-    write("Info : Proposition a demontrer : "), write(Inst), write(" : "), write(C), nl,
+    (concept(C) -> true; write("Warning : "), write(C), write(" n'est pas un concept"), nl, false), nl,
+    write('Info : Proposition a demontrer \"'), write(Inst), write(' : '), affiche_concept(C), write('\"'), nl,
     definitionAtomique(not(C), NCA),
     nnf(NCA, NCFinal).
 
@@ -209,7 +223,8 @@ acquisition_prop_type2(Abi, [(Inst, and(CA1Final, CA2Final))|Abi]) :-
     acquisition_type2_concept(C1,1),
     (concept(C1) -> true; write("Warning : "), write(C1), write(" n'est pas un concept"), nl, false),
     acquisition_type2_concept(C2,2),
-    (concept(C2) -> true; write("Warning : "), write(C2), write(" n'est pas un concept"), nl, false),
+    (concept(C2) -> true; write("Warning : "), write(C2), write(" n'est pas un concept"), nl, false), nl,
+    write('Info : Proposition a demontrer \"'), affiche_concept(C1), write(' ⊓ '), affiche_concept(C2), write(' ⊑ ⊥\" '), nl,
     definitionAtomique(C1, CA1), definitionAtomique(C2, CA2),
     nnf(CA1, CA1Final), nnf(CA2, CA2Final).
 
@@ -452,6 +467,9 @@ affiche_concept(or(C1,C2)) :-
 affiche_concept(C) :-
     cnamea(C),
     write(C).
+affiche_concept(C) :-
+    cnamena(C),
+    write(C).
 affiche_concept(not(C)) :-
     write("¬"), affiche_concept(C).
 
@@ -522,3 +540,55 @@ chiffre_car(6,'6').
 chiffre_car(7,'7').
 chiffre_car(8,'8').
 chiffre_car(9,'9').
+
+
+% ####################################################################
+% ############################# Tests ################################
+% ####################################################################
+
+:- dynamic(saved_output/1).
+
+% Save the current output stream
+
+mute :-
+    tell('output_test_partie3.txt'),
+    assert(saved_output('output_test_partie3.txt')).
+
+% Restore the saved output stream
+unmute :-
+    retract(saved_output(SavedStream)),
+    tell(SavedStream),
+    told.
+
+test() :-
+    load_files("./test/tabox_autoref.pl"),
+    (test_autoref() -> write("test_autoref: OK"), nl; write("test_autoref: FAIL"), nl),
+    unload_file("./test/tabox_autoref.pl"),
+
+    load_files("tabox.pl"),
+    (test_concept() -> write("test_concept: OK"), nl; write("test_concept: FAIL"), nl),
+
+    (test_partie3() -> write("test_partie3: OK"), nl; write("test_partie3: FAIL"), nl),
+    delete_file("output_test_partie3.txt"),
+
+    unload_file("tabox.pl").
+
+test_autoref() :-
+    autoref(sculpture),
+    autoref(joueur),
+    autoref(marque).
+
+test_concept() :-
+    (concept(and(personne,some(aCree,sculpture)))-> true; false),
+    (concept(objet)-> true; false),
+    (concept(existepas)-> false; true).
+
+test_partie3() :-
+    getAbi(Abi),
+    getAbr(Abr),
+    mute,
+    (troisieme_etape(Abi,Abr) -> unmute, false; unmute, true).
+
+
+getAbi([(inst1,and(and(personne,some(aCree,sculpture)),and(personne,some(aEcrit,livre)))),(david,sculpture),(joconde,objet),(michelAnge,personne),(sonnets,livre),(vinci,personne)]).
+getAbr([(michelAnge,david,aCree),(michelAnge,sonnets,aEcrit),(vinci,joconde,aCree)]).
